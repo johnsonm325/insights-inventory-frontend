@@ -1,4 +1,5 @@
 import { loadEntities } from '../store/inventory-actions';
+import { normalizeHostListOrderBy } from './constants';
 
 export const subtractWeeks = (numOfWeeks, date = new Date()) => {
   date.setDate(date.getDate() - numOfWeeks * 7);
@@ -49,6 +50,10 @@ export const loadSystems = (options, showTags, getEntities) => {
         )
       : options?.items;
 
+  const orderBy = normalizeHostListOrderBy(
+    options?.orderBy ?? options?.sortBy?.key,
+  );
+
   const config = {
     ...(options.hasItems && {
       sortBy: options?.sortBy?.key,
@@ -56,7 +61,7 @@ export const loadSystems = (options, showTags, getEntities) => {
     }),
     ...options,
     filters: options?.filters || options?.activeFilters,
-    orderBy: options?.orderBy || options?.sortBy?.key,
+    orderBy,
     orderDirection:
       options?.orderDirection?.toUpperCase() ||
       options?.sortBy?.direction?.toUpperCase(),

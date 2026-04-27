@@ -6,17 +6,22 @@ import SearchableGroupFilter from './SearchableGroupFilter';
 
 const setter = jest.fn();
 
+const defaultProps = {
+  searchQuery: '',
+  setSearchQuery: () => {},
+  isLoading: false,
+  isFetchingNextPage: false,
+  hasNextPage: false,
+  fetchNextPage: () => {},
+};
+
 it('shows no groups available message', async () => {
   render(
     <SearchableGroupFilter
-      searchQuery=""
-      setSearchQuery={() => {}}
+      {...defaultProps}
       groups={[]}
-      selectedGroupNames={[]}
-      setSelectedGroupNames={() => {}}
-      isFetchingNextPage={false}
-      hasNextPage={false}
-      fetchNextPage={() => {}}
+      selectedGroupIds={[]}
+      setSelectedGroupIds={() => {}}
     />,
   );
 
@@ -31,14 +36,10 @@ it('shows no groups available message', async () => {
 it('shows some groups when available', async () => {
   render(
     <SearchableGroupFilter
-      searchQuery=""
-      setSearchQuery={() => {}}
-      groups={[{ name: 'group-1' }]}
-      selectedGroupNames={[]}
-      setSelectedGroupNames={() => {}}
-      isFetchingNextPage={false}
-      hasNextPage={false}
-      fetchNextPage={() => {}}
+      {...defaultProps}
+      groups={[{ id: 'aaaaaaaa-bbbb-4ccc-dddd-000000000001', name: 'group-1' }]}
+      selectedGroupIds={[]}
+      setSelectedGroupIds={() => {}}
     />,
   );
 
@@ -55,16 +56,13 @@ it('shows some groups when available', async () => {
 });
 
 it('a group can be selected', async () => {
+  const groupId = 'aaaaaaaa-bbbb-4ccc-dddd-000000000001';
   render(
     <SearchableGroupFilter
-      searchQuery=""
-      setSearchQuery={() => {}}
-      groups={[{ name: 'group-1' }]}
-      selectedGroupNames={[]}
-      setSelectedGroupNames={setter}
-      isFetchingNextPage={false}
-      hasNextPage={false}
-      fetchNextPage={() => {}}
+      {...defaultProps}
+      groups={[{ id: groupId, name: 'group-1' }]}
+      selectedGroupIds={[]}
+      setSelectedGroupIds={setter}
     />,
   );
 
@@ -74,20 +72,21 @@ it('a group can be selected', async () => {
     }),
   );
   await userEvent.click(screen.getByText('group-1'));
-  expect(setter).toHaveBeenCalledWith(['group-1']);
+  expect(setter).toHaveBeenCalledWith([groupId]);
 });
 
 it('selected groups are checked', async () => {
+  const id1 = 'aaaaaaaa-bbbb-4ccc-dddd-000000000001';
+  const id2 = 'aaaaaaaa-bbbb-4ccc-dddd-000000000002';
   render(
     <SearchableGroupFilter
-      searchQuery=""
-      setSearchQuery={() => {}}
-      groups={[{ name: 'group-1' }, { name: 'group-2' }]}
-      selectedGroupNames={['group-1']}
-      setSelectedGroupNames={setter}
-      isFetchingNextPage={false}
-      hasNextPage={false}
-      fetchNextPage={() => {}}
+      {...defaultProps}
+      groups={[
+        { id: id1, name: 'group-1' },
+        { id: id2, name: 'group-2' },
+      ]}
+      selectedGroupIds={[id1]}
+      setSelectedGroupIds={setter}
     />,
   );
 

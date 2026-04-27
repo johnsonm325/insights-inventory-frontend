@@ -22,6 +22,7 @@ import {
   getGroupDetail,
   getGroups,
 } from '../components/InventoryGroups/utils/api';
+import { normalizeHostListOrderBy } from '../Utilities/constants';
 
 export const loadEntities = (
   items = [],
@@ -63,7 +64,7 @@ export const loadEntities = (
         ...(isFilterDisabled('host_group') && { hostGroupFilter: undefined }),
       };
 
-  const orderBy = config.orderBy || 'updated';
+  const orderBy = normalizeHostListOrderBy(config.orderBy);
   const orderDirection = config.orderDirection?.toUpperCase() || 'DESC';
 
   const lastDateRequest = Date.now();

@@ -21,7 +21,7 @@ export const INITIAL_INVENTORY_FILTERS: InventoryFilters = {
   source: [],
   rhcStatus: [],
   system_type: [],
-  group_name: [],
+  group_id: [],
   last_seen: '',
   tags: [],
   operating_system: [],

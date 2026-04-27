@@ -23,16 +23,17 @@ import {
 } from '@patternfly/react-core';
 import xor from 'lodash/xor';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { ApiGroupGetGroupListGroupTypeEnum } from '@redhat-cloud-services/host-inventory-client/ApiGroupGetGroupList';
 import { getGroupList } from '../../../api/hostInventoryApiTyped';
 import { DEBOUNCE_TIMEOUT_MS } from '../../../constants';
+import { UNGROUPED_HOSTS_LABEL } from '../../../Utilities/constants';
+import { useUngroupedHostsGroupQuery } from '../../../Utilities/hooks/useUngroupedHostsGroupQuery';
 
 interface WorkspaceFilterProps {
   placeholder?: string;
   value?: string[];
   onChange?: (event?: React.MouseEvent, values?: string[]) => void;
 }
-
-export const UNGROUPED_ID = 'Ungrouped hosts';
 
 export const WorkspaceFilter = ({
   placeholder,
@@ -51,11 +52,16 @@ export const WorkspaceFilter = ({
   const [visibleSize, setVisibleSize] = useState(INITIAL_VISIBLE_SIZE);
   const [focusedOption, setFocusedOption] = useState(0);
 
+  const { data: ungroupedMeta } = useUngroupedHostsGroupQuery({
+    enabled: hasAccess,
+  });
+
   const { data, fetchNextPage, hasNextPage, isFetching, isPending } =
     useInfiniteQuery({
       queryKey: ['groups', debouncedSearch],
       queryFn: async ({ pageParam }) =>
         getGroupList({
+          groupType: ApiGroupGetGroupListGroupTypeEnum.Standard,
           page: pageParam,
           perPage: PAGE_SIZE,
           ...(debouncedSearch && { name: debouncedSearch }),
@@ -74,30 +80,48 @@ export const WorkspaceFilter = ({
   const workspaceOptions = useMemo(() => {
     if (!data?.pages) return [];
 
-    const items = data.pages
-      .map((page) => page.results)
-      .flat()
-      .map(({ name, host_count: hostCount }) => ({
-        itemId: name,
-        children: (
-          <Flex alignItems={{ default: 'alignItemsCenter' }}>
-            <FlexItem>{name}</FlexItem>
-            <FlexItem>
-              <Badge isRead>
-                {typeof hostCount === 'number' ? hostCount : '—'}
-              </Badge>
-            </FlexItem>
-          </Flex>
-        ),
-      }));
+    const flat = data.pages
+      .flatMap((page) => page.results ?? [])
+      .filter((g) => !g.ungrouped);
 
-    return [
-      ...(debouncedSearch
-        ? []
-        : [{ itemId: UNGROUPED_ID, children: UNGROUPED_ID }]),
-      ...items,
-    ];
-  }, [data, debouncedSearch]);
+    const standardRows = flat.map(({ id, name, host_count: hostCount }) => ({
+      itemId: id,
+      isUngrouped: false,
+      children: (
+        <Flex alignItems={{ default: 'alignItemsCenter' }}>
+          <FlexItem>{name}</FlexItem>
+          <FlexItem>
+            <Badge isRead>
+              {typeof hostCount === 'number' ? hostCount : '—'}
+            </Badge>
+          </FlexItem>
+        </Flex>
+      ),
+    }));
+
+    if (debouncedSearch || !ungroupedMeta?.id) {
+      return standardRows;
+    }
+
+    const ungroupedRow = {
+      itemId: ungroupedMeta.id,
+      isUngrouped: true,
+      children: (
+        <Flex alignItems={{ default: 'alignItemsCenter' }}>
+          <FlexItem>{UNGROUPED_HOSTS_LABEL}</FlexItem>
+          <FlexItem>
+            <Badge isRead>
+              {typeof ungroupedMeta.hostCount === 'number'
+                ? ungroupedMeta.hostCount
+                : '—'}
+            </Badge>
+          </FlexItem>
+        </Flex>
+      ),
+    };
+
+    return [ungroupedRow, ...standardRows];
+  }, [data, debouncedSearch, ungroupedMeta]);
 
   const visibleOptions = workspaceOptions.slice(0, visibleSize);
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
@@ -199,6 +223,7 @@ export const WorkspaceFilter = ({
           ) : (
             <Fragment>
               {visibleOptions.map((option, index) => {
+                const { isUngrouped, ...selectOptionProps } = option;
                 return (
                   <Fragment key={option.itemId}>
                     <SelectOption
@@ -209,9 +234,9 @@ export const WorkspaceFilter = ({
                       data-ouia-component-id="FilterByGroupOption"
                       ref={index === focusedOption ? focusedOptionRef : null}
                       hasCheckbox={true}
-                      {...option}
+                      {...selectOptionProps}
                     />
-                    {option.itemId === UNGROUPED_ID && <Divider />}
+                    {isUngrouped && <Divider />}
                   </Fragment>
                 );
               })}

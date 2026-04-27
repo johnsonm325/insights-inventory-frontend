@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { DataViewCheckboxFilter } from '@patternfly/react-data-view';
 import DataViewFilters from '@patternfly/react-data-view/dist/cjs/DataViewFilters';
 import {
@@ -18,6 +19,12 @@ import { useDataViewFiltersContext } from '../DataViewFiltersContext';
 import { LAST_SEEN_OPTIONS, type LastSeenKey } from '../constants';
 import { WORKLOAD_FILTER_OPTIONS } from '../utils/workloadsFilter';
 import { formatOperatingSystemChipLabel } from '../utils/operatingSystemSelectOptions';
+import { UNGROUPED_HOSTS_LABEL } from '../../../Utilities/constants';
+import {
+  stableIdsKey,
+  useWorkspaceGroupDisplayNames,
+} from '../../../Utilities/hooks/useWorkspaceGroupDisplayNames';
+import { useUngroupedHostsGroupQuery } from '../../../Utilities/hooks/useUngroupedHostsGroupQuery';
 
 export interface InventoryFilters {
   hostname_or_id: string;
@@ -25,7 +32,7 @@ export interface InventoryFilters {
   source: ApiHostGetHostListRegisteredWithEnum[];
   rhcStatus: string[];
   system_type: string[];
-  group_name: string[];
+  group_id: string[];
   tags: string[];
   operating_system: string[];
   workloads: string[];
@@ -39,6 +46,73 @@ export const isToolbarLabel = (
 export const SystemsViewFilters = () => {
   const { filters, onSetFilters } = useDataViewFiltersContext();
   const isHideRHCFilterFlagEnabled = useFeatureFlag('hbi.ui.hide_rhc_filter');
+  const queryClient = useQueryClient();
+  const [workspaceListNamesVersion, setWorkspaceListNamesVersion] = useState(0);
+
+  useEffect(() => {
+    const cache = queryClient.getQueryCache();
+    return cache.subscribe((event) => {
+      const key = event?.query?.queryKey;
+      if (
+        Array.isArray(key) &&
+        (key[0] === 'groups' || key[0] === 'inventory')
+      ) {
+        setWorkspaceListNamesVersion((v) => v + 1);
+      }
+    });
+  }, [queryClient]);
+
+  const { data: ungroupedMeta } = useUngroupedHostsGroupQuery();
+
+  /** Names from any in-flight `['groups', …]` queries (same cache as WorkspaceFilter). */
+  const workspaceNamesFromGroupListQueries = useMemo(() => {
+    void workspaceListNamesVersion;
+    const map: Record<string, string> = {};
+    for (const [, data] of queryClient.getQueriesData({
+      queryKey: ['groups'],
+    })) {
+      const pages = (
+        data as
+          | {
+              pages?: Array<{
+                results?: Array<{
+                  id?: string;
+                  name?: string;
+                  ungrouped?: boolean;
+                }>;
+              }>;
+            }
+          | undefined
+      )?.pages;
+      if (!pages) continue;
+      for (const page of pages) {
+        for (const g of page?.results ?? []) {
+          if (!g?.id) continue;
+          map[g.id] = g.ungrouped ? UNGROUPED_HOSTS_LABEL : (g.name ?? '');
+        }
+      }
+    }
+    if (ungroupedMeta?.id) {
+      map[ungroupedMeta.id] = UNGROUPED_HOSTS_LABEL;
+    }
+    return map;
+  }, [queryClient, workspaceListNamesVersion, ungroupedMeta]);
+
+  const selectedIdsKey = useMemo(
+    () => stableIdsKey(filters.group_id),
+    [filters.group_id],
+  );
+
+  const {
+    data: resolvedGroupNames = {},
+    isFetched,
+    isFetching,
+    isPlaceholderData,
+  } = useWorkspaceGroupDisplayNames(filters.group_id);
+
+  const namesQueryRelevant = Boolean(selectedIdsKey);
+  const groupDisplayNamesComplete =
+    !namesQueryRelevant || (isFetched && !isFetching && !isPlaceholderData);
 
   return (
     <>
@@ -128,25 +202,37 @@ export const SystemsViewFilters = () => {
           ]}
         />
         <DataViewCustomFilter
-          filterId="group_name"
+          filterId="group_id"
           title="Workspace"
           placeholder="Filter by workspace"
           ouiaId="SystemsViewWorkspaceFilter"
           filterComponent={WorkspaceFilter}
           createLabel={(value, title) =>
             value?.map((item: string) => {
-              return {
-                key: title,
-                node: item,
-              };
+              if (item === '') {
+                return { key: item, node: UNGROUPED_HOSTS_LABEL };
+              }
+              const fromLoadedList = workspaceNamesFromGroupListQueries[item];
+              const fromIdLookup = resolvedGroupNames[item];
+              const resolvedName = fromLoadedList ?? fromIdLookup;
+              if (resolvedName) {
+                return { key: item, node: resolvedName };
+              }
+              if (!groupDisplayNamesComplete) {
+                return { key: item, node: 'Loading…' };
+              }
+              return { key: item, node: 'Workspace' };
             }) ?? []
           }
           deleteLabel={(_category, label, value, onChange) =>
             onChange?.(
               undefined,
-              value?.filter(
-                (item) => item !== (isToolbarLabel(label) ? label.node : label),
-              ),
+              value?.filter((item) => {
+                if (isToolbarLabel(label)) {
+                  return item !== label.key;
+                }
+                return item !== label;
+              }),
             )
           }
         />

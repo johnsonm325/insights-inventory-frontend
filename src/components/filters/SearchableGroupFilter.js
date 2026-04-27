@@ -15,6 +15,7 @@ import {
 
 import xor from 'lodash/xor';
 import PropTypes from 'prop-types';
+import { UNGROUPED_HOSTS_LABEL } from '../../Utilities/constants';
 
 const VISIBLE_LIMIT = 10;
 
@@ -26,14 +27,15 @@ const SearchableGroupFilter = ({
   hasNextPage,
   groups,
   fetchNextPage,
-  selectedGroupNames,
-  setSelectedGroupNames,
-  showNoGroupOption,
+  selectedGroupIds,
+  setSelectedGroupIds,
+  showNoGroupOption = false,
+  ungroupedHostsGroupId,
+  ungroupedHostsHostCount,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [focusedItemIndex, setFocusedItemIndex] = useState(null);
   const [visibleCount, setVisibleCount] = useState(VISIBLE_LIMIT);
-  const [selectOptions, setSelectOptions] = useState([]);
 
   // Reset visible count when search query changes
   useEffect(() => {
@@ -41,23 +43,33 @@ const SearchableGroupFilter = ({
     setFocusedItemIndex(null);
   }, [searchQuery]);
 
-  const prefixOptions = useMemo(
-    () =>
-      showNoGroupOption
+  const selectOptions = useMemo(() => {
+    const prefix =
+      showNoGroupOption && ungroupedHostsGroupId && !searchQuery
         ? [
             {
-              itemId: '',
-              children: 'Ungrouped hosts',
+              itemId: ungroupedHostsGroupId,
+              isUngrouped: true,
+              children: (
+                <Flex alignItems={{ default: 'alignItemsCenter' }}>
+                  <FlexItem>{UNGROUPED_HOSTS_LABEL}</FlexItem>
+                  <FlexItem>
+                    <Badge isRead>
+                      {typeof ungroupedHostsHostCount === 'number'
+                        ? ungroupedHostsHostCount
+                        : '—'}
+                    </Badge>
+                  </FlexItem>
+                </Flex>
+              ),
             },
           ]
-        : [],
-    [showNoGroupOption],
-  );
+        : [];
 
-  const groupOptions = useMemo(() => {
-    const g = groups.slice(0, visibleCount);
-    return g.map(({ name, host_count: hostCount }) => ({
-      itemId: name,
+    const visible = groups.slice(0, visibleCount);
+    const rest = visible.map(({ id, name, host_count: hostCount }) => ({
+      itemId: id,
+      isUngrouped: false,
       children: (
         <Flex alignItems={{ default: 'alignItemsCenter' }}>
           <FlexItem>{name}</FlexItem>
@@ -69,22 +81,15 @@ const SearchableGroupFilter = ({
         </Flex>
       ),
     }));
-  }, [groups, visibleCount]);
 
-  useEffect(() => {
-    let newSelectOptions = [
-      ...(searchQuery ? [] : prefixOptions),
-      ...groupOptions,
-    ];
-
-    setFocusedItemIndex(null);
-    setSelectOptions(newSelectOptions);
+    return [...prefix, ...rest];
   }, [
+    showNoGroupOption,
+    ungroupedHostsGroupId,
+    ungroupedHostsHostCount,
     searchQuery,
-    prefixOptions,
-    groupOptions,
-    setSelectOptions,
-    setFocusedItemIndex,
+    groups,
+    visibleCount,
   ]);
 
   const handleMenuArrowKeys = (key) => {
@@ -163,7 +168,7 @@ const SearchableGroupFilter = ({
       return;
     }
 
-    setSelectedGroupNames(xor(selectedGroupNames, [itemId]));
+    setSelectedGroupIds(xor(selectedGroupIds, [itemId]));
   };
 
   const onViewMoreClick = () => {
@@ -195,7 +200,7 @@ const SearchableGroupFilter = ({
     </MenuToggle>
   );
 
-  const shouldShowViewMore = groupOptions.length > visibleCount || hasNextPage;
+  const shouldShowViewMore = visibleCount < groups.length || hasNextPage;
 
   return (
     <div data-ouia-component-id="FilterByGroup">
@@ -203,7 +208,7 @@ const SearchableGroupFilter = ({
         id="groups-filter-select"
         ouiaId="Filter by group"
         isOpen={isOpen}
-        selected={selectedGroupNames}
+        selected={selectedGroupIds}
         onSelect={(event, selection) => onSelect(selection)}
         onOpenChange={() => {
           setIsOpen(false);
@@ -215,20 +220,23 @@ const SearchableGroupFilter = ({
           {selectOptions.length === 0 && !isLoading ? (
             <SelectOption key="none">{`${searchQuery ? 'No workspaces found' : 'No workspaces available'}`}</SelectOption>
           ) : (
-            selectOptions.map((option, index) => (
-              <div key={option.itemId || option.children}>
-                <SelectOption
-                  isSelected={selectedGroupNames.includes(option.itemId)}
-                  key={option.itemId || option.children}
-                  isFocused={focusedItemIndex === index}
-                  className={option.className}
-                  data-ouia-component-id="FilterByGroupOption"
-                  hasCheckbox
-                  {...option}
-                />
-                {option.itemId === '' && <Divider />}
-              </div>
-            ))
+            selectOptions.map((option, index) => {
+              const { isUngrouped, ...selectOptionProps } = option;
+              return (
+                <div key={option.itemId || option.children}>
+                  <SelectOption
+                    isSelected={selectedGroupIds.includes(option.itemId)}
+                    key={option.itemId || option.children}
+                    isFocused={focusedItemIndex === index}
+                    className={option.className}
+                    data-ouia-component-id="FilterByGroupOption"
+                    hasCheckbox
+                    {...selectOptionProps}
+                  />
+                  {isUngrouped && <Divider />}
+                </div>
+              );
+            })
           )}
           {
             // Show spinner when loading more, "View more" when there is more to load
@@ -262,13 +270,16 @@ SearchableGroupFilter.propTypes = {
   fetchNextPage: PropTypes.func.isRequired,
   groups: PropTypes.arrayOf(
     PropTypes.shape({
+      id: PropTypes.string.isRequired,
       name: PropTypes.string.isRequired,
       host_count: PropTypes.number,
     }),
   ).isRequired,
-  selectedGroupNames: PropTypes.arrayOf(PropTypes.string).isRequired,
-  setSelectedGroupNames: PropTypes.func.isRequired,
+  selectedGroupIds: PropTypes.arrayOf(PropTypes.string).isRequired,
+  setSelectedGroupIds: PropTypes.func.isRequired,
   showNoGroupOption: PropTypes.bool,
+  ungroupedHostsGroupId: PropTypes.string,
+  ungroupedHostsHostCount: PropTypes.number,
 };
 
 export default SearchableGroupFilter;

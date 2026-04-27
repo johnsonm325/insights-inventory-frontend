@@ -12,6 +12,7 @@ import { buildOperatingSystemProfileFilter } from '../utils/operatingSystemSelec
 import { buildWorkloadsFilter } from '../utils/workloadsFilter';
 import { lastSeenKeysToApiParams } from '../utils/lastSeenKeysToApiParams';
 import type { LastSeenCustomRange } from '../DataViewFiltersContext';
+import { isInventoryGroupId } from '../../../Utilities/isInventoryGroupId';
 
 const serializeSystemType = (values: string[]) => {
   const validValues = Object.values(ApiHostGetHostListSystemTypeEnum);
@@ -74,7 +75,10 @@ const fetchSystems = async ({
     ...(filters?.system_type && {
       systemType: serializeSystemType(filters.system_type),
     }),
-    ...(filters?.group_name && { groupName: filters.group_name }),
+    ...(filters?.group_id?.length &&
+      filters.group_id.filter(isInventoryGroupId).length && {
+        groupId: filters.group_id.filter(isInventoryGroupId),
+      }),
     ...(filters?.tags && { tags: filters.tags }),
     ...(lastSeenParams ?? {}),
     /* Override default dot notation from API client: backend requires bracket notation for nested params (fields, filter) */

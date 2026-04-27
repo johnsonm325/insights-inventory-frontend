@@ -2,6 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import {
   HOST_GROUP_CHIP,
+  HOST_LIST_ORDER_BY_FIELDS,
   RHCD_FILTER_KEY,
   UPDATE_METHOD_KEY,
   WORKLOAD_FILTER_KEY,
@@ -167,17 +168,27 @@ export const getSearchParams = (searchParams) => {
 
   const rhcdFilter = searchParams.getAll(RHCD_FILTER_KEY);
   const updateMethodFilter = searchParams.getAll(UPDATE_METHOD_KEY);
-  const hostGroupFilter = searchParams.getAll(HOST_GROUP_CHIP);
+  const hostGroupFilter = [...searchParams.getAll(HOST_GROUP_CHIP)];
   const page = searchParams.get('page');
   const perPage = searchParams.get('per_page');
   const lastSeenFilter = searchParams.getAll('last_seen');
   const systemTypeFilter = searchParams.getAll('system_type');
   const workloadFilter = searchParams.getAll(WORKLOAD_FILTER_KEY);
   const rawSort = searchParams.get('sort');
-  const sortBy = {
-    key: rawSort?.startsWith('-') ? rawSort.slice(1) : rawSort,
-    direction: rawSort?.startsWith('-') ? 'desc' : 'asc',
-  };
+  const sortKey =
+    rawSort != null && rawSort !== ''
+      ? rawSort.startsWith('-')
+        ? rawSort.slice(1)
+        : rawSort
+      : null;
+  const sortDirection = rawSort?.startsWith('-') ? 'desc' : 'asc';
+  const sortKeyValid =
+    sortKey != null &&
+    sortKey !== '' &&
+    HOST_LIST_ORDER_BY_FIELDS.includes(sortKey);
+  const sortBy = sortKeyValid
+    ? { key: sortKey, direction: sortDirection }
+    : {};
 
   return {
     status,

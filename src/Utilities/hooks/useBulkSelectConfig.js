@@ -3,6 +3,7 @@ import flatten from 'lodash/flatten';
 import map from 'lodash/map';
 import React, { Fragment, useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { isInventoryGroupId } from '../isInventoryGroupId';
 import * as actions from '../../store/actions';
 import { loadSystems } from '../sharedFunctions';
 import useFetchBatched from './useFetchBatched';
@@ -14,7 +15,7 @@ export const useBulkSelectConfig = (
   rows,
   loaded,
   pageSelected,
-  groupName,
+  groupId,
 ) => {
   const [isBulkLoading, setBulkLoading] = useState(false);
   const { fetchBatched } = useFetchBatched();
@@ -48,8 +49,8 @@ export const useBulkSelectConfig = (
     setBulkLoading(true);
     const data = await fetchAllSystemIds(
       {
-        filters: groupName
-          ? [...activeFilters, { hostGroupFilter: groupName }]
+        filters: isInventoryGroupId(groupId)
+          ? [...activeFilters, { hostGroupFilter: [groupId] }]
           : activeFilters,
         globalFilter: globalFilter ?? {},
       },

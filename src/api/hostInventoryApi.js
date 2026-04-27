@@ -84,6 +84,7 @@ const getHostList = async ({
   lastCheckInStart,
   lastCheckInEnd,
   groupName,
+  groupId,
   branchId,
   perPage,
   page,
@@ -97,7 +98,7 @@ const getHostList = async ({
   fields,
   options: { axios, ...options } = {},
 } = {}) =>
-  await hostInventoryApi(axios).apiHostGetHostList(
+  await hostInventoryApi(axios).apiHostGetHostList({
     displayName,
     fqdn,
     hostnameOrId,
@@ -105,8 +106,8 @@ const getHostList = async ({
     subscriptionManagerId,
     providerId,
     providerType,
-    _updatedStart,
-    _updatedEnd,
+    updatedStart: _updatedStart,
+    updatedEnd: _updatedEnd,
     lastCheckInStart,
     lastCheckInEnd,
     groupName,
@@ -121,8 +122,16 @@ const getHostList = async ({
     systemType,
     filter,
     fields,
-    options,
-  );
+    options: {
+      ...options,
+      params: {
+        ...options.params,
+        ...(Array.isArray(groupId) && groupId.length > 0
+          ? { group_id: groupId }
+          : {}),
+      },
+    },
+  });
 
 const getTags = async ({
   tags,

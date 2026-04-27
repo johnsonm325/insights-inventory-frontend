@@ -103,7 +103,7 @@ const GroupSystems = ({ groupName, groupId, ungrouped }) => {
     rows,
     true,
     pageSelected,
-    groupName,
+    groupId,
   );
 
   return (
@@ -139,7 +139,7 @@ const GroupSystems = ({ groupName, groupId, ungrouped }) => {
                 ...config,
                 filters: {
                   ...config.filters,
-                  hostGroupFilter: [groupName],
+                  hostGroupFilter: [groupId],
                 },
               },
               showTags,

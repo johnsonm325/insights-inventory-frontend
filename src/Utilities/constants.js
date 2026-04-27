@@ -12,7 +12,25 @@ export const UPDATE_METHOD_KEY = 'system_update_method';
 export const SYSTEM_TYPE_KEY = 'system_type';
 export const WORKLOAD_FILTER_KEY = 'workloads';
 export const LAST_SEEN_CHIP = 'last_seen';
-export const HOST_GROUP_CHIP = 'group_name'; // use the same naming as for the back end parameter
+/** Chip / URL param key for workspace filter; values are group UUIDs (see group_id on GET /hosts). */
+export const HOST_GROUP_CHIP = 'group_id';
+/** Display label for the inventory Ungrouped hosts workspace (not an API id). */
+export const UNGROUPED_HOSTS_LABEL = 'Ungrouped hosts';
+
+/** Allowed `order_by` values for GET /hosts and related inventory APIs. */
+export const HOST_LIST_ORDER_BY_FIELDS = Object.freeze([
+  'display_name',
+  'group_name',
+  'updated',
+  'operating_system',
+  'last_check_in',
+]);
+
+/** Maps Redux / URL sort keys to a valid API `order_by` (defaults to `updated`). */
+export const normalizeHostListOrderBy = (value) =>
+  typeof value === 'string' && HOST_LIST_ORDER_BY_FIELDS.includes(value)
+    ? value
+    : 'updated';
 //REPORTERS
 export const REPORTER_PUPTOO = 'puptoo';
 export const REPORTER_RHSM_CONDUIT = 'rhsm-conduit';

@@ -189,7 +189,7 @@ export const workspace = {
   label: 'Workspace',
   type: 'workspace',
   filterSerialiser: (_config, values) => {
-    return { groupName: values };
+    return { groupId: values };
   },
 };
 

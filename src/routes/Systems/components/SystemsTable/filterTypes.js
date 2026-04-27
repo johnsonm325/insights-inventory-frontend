@@ -1,14 +1,15 @@
 import LastSeenFilter from './components/filters/LastSeenFilter';
 import WorkspaceFilter from './components/filters/WorkspaceFilter';
 import { stringToId } from './filtersHelpers';
+import { UNGROUPED_HOSTS_LABEL } from '../../../../Utilities/constants';
 
 export const workspace = {
   Component: WorkspaceFilter,
   filterChips: (configItem, selectedValues) => ({
     category: configItem.label,
     chips: [
-      ...selectedValues.map((name) => ({
-        name: name ? name : 'Ungrouped hosts',
+      ...selectedValues.map((id) => ({
+        name: id ? id : UNGROUPED_HOSTS_LABEL,
       })),
     ],
   }),
@@ -17,7 +18,8 @@ export const workspace = {
   },
   toDeselectValue: (configItem, chip) => {
     const chipName = chip?.chips?.[0]?.name;
-    const customDeselectValue = chipName === 'Ungrouped hosts' ? '' : chipName;
+    const customDeselectValue =
+      chipName === UNGROUPED_HOSTS_LABEL || chipName === '' ? '' : chipName;
     return [customDeselectValue, stringToId(configItem.label), false];
   },
 };

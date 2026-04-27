@@ -6,6 +6,7 @@ import {
   SYSTEM_TYPE_KEY,
   WORKLOAD_FILTER_KEY,
 } from '../../../Utilities/constants';
+import { isInventoryGroupId } from '../../../Utilities/isInventoryGroupId';
 
 const mapTags = ({ category, values }) =>
   values.map(
@@ -60,9 +61,11 @@ const filterMapper = {
       searchParams.append(UPDATE_METHOD_KEY, item),
     ),
   hostGroupFilter: ({ hostGroupFilter }, searchParams) =>
-    hostGroupFilter?.forEach((item) =>
-      searchParams.append(HOST_GROUP_CHIP, item),
-    ),
+    hostGroupFilter?.forEach((item) => {
+      if (isInventoryGroupId(item)) {
+        searchParams.append(HOST_GROUP_CHIP, item);
+      }
+    }),
   systemTypeFilter: ({ systemTypeFilter }, searchParams) =>
     systemTypeFilter?.forEach((item) =>
       searchParams.append(SYSTEM_TYPE_KEY, item),

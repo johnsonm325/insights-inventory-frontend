@@ -2,12 +2,14 @@ import '@testing-library/jest-dom';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
-import { WorkspaceFilter, UNGROUPED_ID } from './WorkspaceFilter';
+import { UNGROUPED_HOSTS_LABEL } from '../../../Utilities/constants';
+import { WorkspaceFilter } from './WorkspaceFilter';
 import {
   makePage,
   mockGroupsInfiniteQuery,
   useInfiniteQuery,
 } from './__fixtures__/testHelpers';
+import { QueryClientWrapper, createTestQueryClient } from '../../../Utilities/TestingUtilities';
 
 jest.mock('../../../constants', () => ({
   ...jest.requireActual('../../../constants'),
@@ -19,11 +21,22 @@ jest.mock('@tanstack/react-query', () => ({
   useInfiniteQuery: jest.fn(),
 }));
 
+const MOCK_UNGROUPED_ID = '99999999-9999-4999-9999-999999999999';
+
+jest.mock('../../../Utilities/hooks/useUngroupedHostsGroupQuery', () => ({
+  useUngroupedHostsGroupQuery: jest.fn(() => ({
+    data: { id: MOCK_UNGROUPED_ID, hostCount: 0 },
+  })),
+}));
+
 const WORKSPACE_FILTER_PLACEHOLDER = 'Filter by workspace';
 
 function renderWorkspaceFilter(props = {}) {
+  const client = createTestQueryClient();
   return render(
-    <WorkspaceFilter placeholder={WORKSPACE_FILTER_PLACEHOLDER} {...props} />,
+    <QueryClientWrapper client={client}>
+      <WorkspaceFilter placeholder={WORKSPACE_FILTER_PLACEHOLDER} {...props} />
+    </QueryClientWrapper>,
   );
 }
 
@@ -32,6 +45,9 @@ async function openWorkspaceMenu(user) {
 }
 
 describe('WorkspaceFilter', () => {
+  /** Deterministic id from makePage(..., { page: 1 }) for a single group at index 0 */
+  const WS1_ID = '00000000-0000-4000-8000-000000010000';
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -55,15 +71,22 @@ describe('WorkspaceFilter', () => {
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
   });
 
-  it('shows Ungrouped hosts when API returns no groups and user is not searching', async () => {
+  it('prepends Ungrouped hosts from the ungrouped-hosts query when not searching', async () => {
     mockGroupsInfiniteQuery({
-      pages: [makePage([])],
+      pages: [
+        makePage([
+          {
+            name: 'Only standard group',
+            host_count: 1,
+          },
+        ]),
+      ],
       isPending: false,
     });
     const user = userEvent.setup();
     renderWorkspaceFilter();
     await openWorkspaceMenu(user);
-    expect(screen.getByText(UNGROUPED_ID)).toBeInTheDocument();
+    expect(screen.getByText(UNGROUPED_HOSTS_LABEL)).toBeInTheDocument();
     expect(
       screen.queryByText('No workspaces available'),
     ).not.toBeInTheDocument();
@@ -111,7 +134,7 @@ describe('WorkspaceFilter', () => {
     const user = userEvent.setup();
     renderWorkspaceFilter();
     await openWorkspaceMenu(user);
-    expect(screen.getByText(UNGROUPED_ID)).toBeInTheDocument();
+    expect(screen.getByText(UNGROUPED_HOSTS_LABEL)).toBeInTheDocument();
     expect(screen.getByText('Alpha')).toBeInTheDocument();
     expect(screen.getByText('Beta')).toBeInTheDocument();
     expect(screen.getByText('10')).toBeInTheDocument();
@@ -141,7 +164,7 @@ describe('WorkspaceFilter', () => {
     await user.click(within(row).getByRole('checkbox'));
     expect(onChange).toHaveBeenCalled();
     const last = onChange.mock.calls.at(-1);
-    expect(last[1]).toEqual(['Workspace 1']);
+    expect(last[1]).toEqual([WS1_ID]);
   });
 
   it('toggles off a selected workspace when its checkbox is clicked again', async () => {
@@ -150,7 +173,7 @@ describe('WorkspaceFilter', () => {
     });
     const user = userEvent.setup();
     const onChange = jest.fn();
-    renderWorkspaceFilter({ onChange, value: ['Workspace 1'] });
+    renderWorkspaceFilter({ onChange, value: [WS1_ID] });
     await openWorkspaceMenu(user);
     const row = screen.getByRole('menuitem', { name: /Workspace 1/i });
     await user.click(within(row).getByRole('checkbox'));

@@ -15,13 +15,25 @@ jest.mock('../../../../../../components/InventoryGroups/utils/api', () => ({
   getGroups: jest.fn(),
 }));
 
+const idUngroupedMock = '99999999-9999-4999-9999-999999999999';
+
+jest.mock('../../../../../../Utilities/hooks/useUngroupedHostsGroupQuery', () => ({
+  useUngroupedHostsGroupQuery: () => ({
+    data: { id: idUngroupedMock, hostCount: 0 },
+  }),
+}));
+
 describe('WorkspaceFilter', () => {
   const mockOnChange = jest.fn();
+  const id1 = '00000000-0000-4000-8000-000000000001';
+  const id2 = '00000000-0000-4000-8000-000000000002';
+  const id3 = '00000000-0000-4000-8000-000000000003';
+
   const mockGroupsResponse = {
     results: [
-      { name: 'Workspace 1', id: '1' },
-      { name: 'Workspace 2', id: '2' },
-      { name: 'Test Workspace', id: '3' },
+      { name: 'Workspace 1', id: id1 },
+      { name: 'Workspace 2', id: id2 },
+      { name: 'Test Workspace', id: id3 },
     ],
     total: 3,
     page: 1,
@@ -81,12 +93,12 @@ describe('WorkspaceFilter', () => {
 
     await user.click(screen.getByText('Workspace 1'));
 
-    expect(mockOnChange).toHaveBeenCalledWith(['Workspace 1']);
+    expect(mockOnChange).toHaveBeenCalledWith([id1]);
   });
 
   it('toggles workspace selection when clicked again', async () => {
     const user = userEvent.setup();
-    const selectedWorkspaces = ['Workspace 1'];
+    const selectedWorkspaces = [id1];
     renderWithWrapper({ value: selectedWorkspaces });
 
     await user.click(screen.getByRole('button'));
@@ -106,7 +118,7 @@ describe('WorkspaceFilter', () => {
 
     // Mock filtered response
     getGroups.mockResolvedValueOnce(mockGroupsResponse).mockResolvedValueOnce({
-      results: [{ name: 'Workspace 1', id: '1' }],
+      results: [{ name: 'Workspace 1', id: id1 }],
       total: 1,
       page: 1,
       per_page: 50,
@@ -123,7 +135,7 @@ describe('WorkspaceFilter', () => {
     await waitFor(
       () => {
         expect(getGroups).toHaveBeenCalledWith(
-          { type: 'standard', name: '1' },
+          { groupType: 'standard', name: '1' },
           { page: 1, per_page: 50 },
         );
       },

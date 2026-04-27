@@ -20,6 +20,8 @@ import xor from 'lodash/xor';
 import PropTypes from 'prop-types';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { getGroups } from '../../../../../../components/InventoryGroups/utils/api';
+import { UNGROUPED_HOSTS_LABEL } from '../../../../../../Utilities/constants';
+import { useUngroupedHostsGroupQuery } from '../../../../../../Utilities/hooks/useUngroupedHostsGroupQuery';
 
 const WorkspaceFilter = ({
   value: selectedWorkspaces = [],
@@ -39,13 +41,17 @@ const WorkspaceFilter = ({
   const [visibleSize, setVisibleSize] = useState(INITIAL_VISIBLE_SIZE);
   const [focusedOption, setFocusedOption] = useState(0);
 
+  const { data: ungroupedMeta } = useUngroupedHostsGroupQuery({
+    enabled: hasAccess,
+  });
+
   const { data, fetchNextPage, hasNextPage, isFetching, isPending } =
     useInfiniteQuery({
       queryKey: ['groups', debouncedSearch],
       queryFn: async ({ pageParam }) =>
         getGroups(
           {
-            type: 'standard',
+            groupType: 'standard',
             ...(debouncedSearch && { name: debouncedSearch }),
           },
           {
@@ -67,19 +73,29 @@ const WorkspaceFilter = ({
   const workspaceOptions = useMemo(() => {
     if (!data?.pages) return [];
 
-    const items = data.pages
-      .map((page) => page.results)
-      .flat()
-      .map(({ name }) => ({
-        itemId: name,
-        children: name,
-      }));
+    const flat = data.pages
+      .flatMap((page) => page.results || [])
+      .filter((g) => !g.ungrouped);
+
+    const standardRows = flat.map(({ id, name }) => ({
+      itemId: id,
+      isUngrouped: false,
+      children: name,
+    }));
+
+    if (debouncedSearch || !ungroupedMeta?.id) {
+      return standardRows;
+    }
 
     return [
-      ...(debouncedSearch ? [] : [{ itemId: '', children: 'Ungrouped hosts' }]),
-      ...items,
+      {
+        itemId: ungroupedMeta.id,
+        isUngrouped: true,
+        children: UNGROUPED_HOSTS_LABEL,
+      },
+      ...standardRows,
     ];
-  }, [data, debouncedSearch]);
+  }, [data, debouncedSearch, ungroupedMeta]);
 
   const visibleOptions = workspaceOptions.slice(0, visibleSize);
   const debounceTimeoutRef = useRef(null);
@@ -181,6 +197,7 @@ const WorkspaceFilter = ({
           ) : (
             <Fragment>
               {visibleOptions.map((option, index) => {
+                const { isUngrouped, ...selectOptionProps } = option;
                 return (
                   <Fragment key={option.itemId}>
                     <SelectOption
@@ -188,9 +205,9 @@ const WorkspaceFilter = ({
                       data-ouia-component-id="FilterByGroupOption"
                       ref={index === focusedOption ? focusedOptionRef : null}
                       hasCheckbox={true}
-                      {...option}
+                      {...selectOptionProps}
                     />
-                    {option.itemId === '' && <Divider />}
+                    {isUngrouped && <Divider />}
                   </Fragment>
                 );
               })}

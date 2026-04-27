@@ -1,5 +1,6 @@
 export const INVENTORY_API_BASE = '/api/inventory/v1';
 import flatMap from 'lodash/flatMap';
+import qs from 'qs';
 
 import axiosInstance from '@redhat-cloud-services/frontend-components-utilities/interceptors';
 import {
@@ -12,6 +13,7 @@ import {
   WORKLOAD_API_MAP,
   allStaleFilters,
 } from '../Utilities/constants';
+import { isInventoryGroupId } from '../Utilities/isInventoryGroupId';
 import { ApiTagGetTagsOrderByEnum } from '@redhat-cloud-services/host-inventory-client/ApiTagGetTags';
 import {
   createStaleness as apiCreateStaleness,
@@ -314,9 +316,12 @@ export async function getEntities(
     const fieldsQueryParams =
       Object.keys(fields || {}).length && generateFilter(fields, 'fields');
 
+    const groupFilterValues = filters?.hostGroupFilter ?? [];
+    const groupIds = groupFilterValues.filter(isInventoryGroupId);
+
     return apiGetHostList({
       hostnameOrId: filters.hostnameOrId,
-      groupName: filters.hostGroupFilter,
+      ...(groupIds.length ? { groupId: groupIds } : {}),
       perPage,
       page,
       orderBy,
@@ -335,6 +340,9 @@ export async function getEntities(
           ? { signal: controller.signal }
           : {}),
         axios,
+        /* Match SystemsView / GET /hosts: bracket arrays so group_id[] serializes like useSystemsQuery */
+        paramsSerializer: (params) =>
+          qs.stringify(params, { arrayFormat: 'brackets' }),
         params: {
           ...(Object.keys(filterQueryParams).length ? filterQueryParams : {}),
           ...(Object.keys(fieldsQueryParams).length ? fieldsQueryParams : {}),
